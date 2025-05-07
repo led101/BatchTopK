@@ -42,6 +42,10 @@ class Evo2ActivationsStore:
         the correct device so logging / diagnostics code doesn’t break.
         """
         return self._next_token_batch()
+    
+    def get_activations(self, batch_tokens):    # ▲
+        """Return activations flattened to (B·L, hidden_size)."""
+        return self._get_acts(batch_tokens)
 
     # tokenisation ---------------------------------------------------
     def _next_token_batch(self):
