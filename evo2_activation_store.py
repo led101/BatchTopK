@@ -66,10 +66,12 @@ class Evo2ActivationsStore:
 
     # public iterator ------------------------------------------------
     def next_batch(self):
-        if not hasattr(self, "_buff") or len(self._buff) == 0:
+        try:
+            return self._buff_iter.__next__()[0]
+        except(StopIteration, AttributeError):
             self._fill_buffer()
-        return self._buff_iter.__next__()[0]
-
+            return self._buff_iter.__next__()[0]
+            
     def _fill_buffer(self):
         acts = []
         for _ in range(self.buffer_batches):
