@@ -41,7 +41,10 @@ def get_default_cfg():
     return default_cfg
 
 def post_init_cfg(cfg):
-    cfg["hook_point"] = get_act_name(cfg["site"], cfg["layer"])
+    if "evo2_hook_module_path" in cfg:
+        cfg["hook_point"] = cfg["evo2_hook_module_path"]
+    else:
+        cfg["hook_point"] = get_act_name(cfg["site"], cfg["layer"])
     cfg["name"] = f"{cfg['model_name']}_{cfg['hook_point']}_{cfg['dict_size']}_{cfg['sae_type']}_{cfg['top_k']}_{cfg['lr']}"
     return cfg
 
