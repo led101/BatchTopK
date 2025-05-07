@@ -6,11 +6,15 @@ from datasets import load_dataset
 
 class Evo2ActivationsStore:
     def __init__(self, cfg):
-        self.model   = load_evo2(cfg["model_name"], cfg["dtype"])  # wrapper
+        self.cfg=cfg
+        model, tokenizer = load_evo2(cfg["model_name"], cfg["dtype"])
+        self.model = model
         self.device  = cfg["device"]
         self.seq_len = cfg["seq_len"]
         self.batch   = cfg["model_batch_size"]
         self.buffer_batches = cfg["num_batches_in_buffer"]
+        self.tokenizer = tokenizer
+
 
         # ------------------------------------------------------------------
         # choose which module to hook
@@ -62,5 +66,5 @@ class Evo2ActivationsStore:
         acts = torch.cat(acts, dim=0)
         self._buff = TensorDataset(acts)
         self._buff_iter = iter(DataLoader(self._buff,
-                                          batch_size=cfg["batch_size"],
+                                          batch_size=self.cfg["batch_size"],
                                           shuffle=True))
