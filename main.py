@@ -23,7 +23,7 @@ for l1_coeff in [0.004, 0.0018, 0.0008]:
     cfg['model_batch_size'] = 128
     cfg['dtype'] = torch.bfloat16
     cfg['device'] = 'cuda'
-    cfg["num_tokens"]= int(2e7), # 20 million tokens
+    cfg["num_tokens"]= int(2e7) # 20 million tokens
 
     cfg["aux_penalty"] = (1/32)
     cfg["lr"] = 3e-4
