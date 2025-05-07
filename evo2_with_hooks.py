@@ -15,7 +15,12 @@ class Evo2WithHooks(torch.nn.Module):
 
     # forward that mimics TL's return_type convention
     def forward(self, input_ids, *, return_type=None):
-        logits = self.base(input_ids)
+        out = self.base(input_ids) # tuple or Tensor
+        if isinstance(out, tuple):
+            logits = out[0]
+        else:
+            logits = out
+
         if return_type == "loss":
             # standard LM cross‑entropy
             shift_logits = logits[:, :-1].contiguous()
