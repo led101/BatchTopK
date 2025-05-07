@@ -32,13 +32,12 @@ class Evo2WithHooks(torch.nn.Module):
             return loss
         return logits
 
-    # very small subset of run_with_hooks
     def run_with_hooks(self, input_ids, *, fwd_hooks, return_type="loss"):
         handles = []
         for name, fn in fwd_hooks:
             mod = self.module_map[name]
             handles.append(mod.register_forward_hook(
-                lambda m, inp, out, fn=fn: fn(out)
+                lambda m, inp, out, fn=fn: fn(out, m)
             ))
         try:
             return self(input_ids, return_type=return_type)
