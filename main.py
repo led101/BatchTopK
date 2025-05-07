@@ -4,7 +4,6 @@ from sae import VanillaSAE, TopKSAE, BatchTopKSAE, JumpReLUSAE
 from activation_store import ActivationsStore
 from config import get_default_cfg, post_init_cfg
 from evo2_activation_store import Evo2ActivationsStore   # <‑‑ new
-from transformer_lens import HookedTransformer
 import torch
 
 
@@ -36,6 +35,3 @@ for l1_coeff in [0.004, 0.0018, 0.0008]:
     sae  = BatchTopKSAE(cfg).to(cfg["device"])
     acts = Evo2ActivationsStore(cfg)             # <‑‑ new
     train_sae(sae, acts, None, cfg)              # model‑arg can be None
-                
-    # model = HookedTransformer.from_pretrained(cfg["model_name"]).to(cfg["dtype"]).to(cfg["device"])
-    # activations_store = ActivationsStore(model, cfg)
