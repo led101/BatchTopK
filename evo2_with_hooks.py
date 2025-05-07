@@ -1,0 +1,35 @@
+import torch
+
+class Evo2WithHooks(torch.nn.Module):
+    def __init__(self, striped_hyena):
+        super().__init__()
+        self.base = striped_hyena
+        self.module_map = dict(self.base.named_modules())
+
+    # forward that mimics TL's return_type convention
+    def forward(self, input_ids, *, return_type=None):
+        logits = self.base(input_ids)
+        if return_type == "loss":
+            # standard LM cross‑entropy
+            shift_logits = logits[:, :-1].contiguous()
+            shift_labels = input_ids[:, 1:].contiguous()
+            loss = torch.nn.functional.cross_entropy(
+                shift_logits.view(-1, logits.size(-1)),
+                shift_labels.view(-1)
+            )
+            return loss
+        return logits
+
+    # very small subset of run_with_hooks
+    def run_with_hooks(self, input_ids, *, fwd_hooks, return_type="loss"):
+        handles = []
+        for name, fn in fwd_hooks:
+            mod = self.module_map[name]
+            handles.append(mod.register_forward_hook(
+                lambda m, inp, out, fn=fn: fn(out)
+            ))
+        try:
+            return self(input_ids, return_type=return_type)
+        finally:
+            for h in handles:
+                h.remove()

@@ -1,13 +1,11 @@
 # evo2_activation_store.py
 import torch
 from torch.utils.data import DataLoader, TensorDataset
-from evo2_loader import load_evo2
 from datasets import load_dataset
 
 class Evo2ActivationsStore:
-    def __init__(self, cfg):
+    def __init__(self, cfg, model, tokenizer):
         self.cfg=cfg
-        model, tokenizer = load_evo2(cfg["model_name"], cfg["dtype"])
         self.model = model
         self.device  = cfg["device"]
         self.seq_len = cfg["seq_len"]

@@ -3,7 +3,9 @@ from training import train_sae
 from sae import BatchTopKSAE
 from config import get_default_cfg, post_init_cfg
 from evo2_activation_store import Evo2ActivationsStore
+from evo2_loader import load_evo2
 import torch
+from evo2_with_hooks import Evo2WithHooks 
 
 
 for l1_coeff in [0.004, 0.0018, 0.0008]:
@@ -30,7 +32,9 @@ for l1_coeff in [0.004, 0.0018, 0.0008]:
     cfg['bandwidth'] = 0.001
 
     cfg = post_init_cfg(cfg)
+    evo2_model_raw, evo2_tokenizer = load_evo2(cfg["model_name"], cfg["dtype"])
+    evo2_model = Evo2WithHooks(evo2_model_raw)
 
     sae  = BatchTopKSAE(cfg).to(cfg["device"])
-    acts = Evo2ActivationsStore(cfg)             
-    train_sae(sae, acts, None, cfg)              
+    acts = Evo2ActivationsStore(cfg, evo2_model, evo2_tokenizer)             
+    train_sae(sae, acts, evo2_model, cfg)              
