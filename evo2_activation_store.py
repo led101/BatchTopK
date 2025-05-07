@@ -40,7 +40,7 @@ class Evo2ActivationsStore:
         while len(toks) < self.batch * self.seq_len:
             ex = next(self.dataset_iter)
             seq = ex["sequence"] if "sequence" in ex else ex["text"]
-            toks += self.model.tokenizer.tokenize(seq)
+            toks += self.tokenizer.tokenize(seq)
         toks = toks[: self.batch * self.seq_len]
         ids  = torch.tensor(toks, dtype=torch.long, device=self.device)
         return ids.view(self.batch, self.seq_len)
