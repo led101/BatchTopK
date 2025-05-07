@@ -1,4 +1,3 @@
-import transformer_lens.utils as utils
 import torch 
 
 def get_default_cfg():
