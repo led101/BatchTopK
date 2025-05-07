@@ -35,6 +35,13 @@ class Evo2ActivationsStore:
 
         ds = load_dataset(cfg["dataset_path"], split="train", streaming=True)
         self.dataset_iter = iter(ds)
+    
+    def get_batch_tokens(self):
+        """
+        Return a fresh (model_batch_size, seq_len) tensor of tokens on
+        the correct device so logging / diagnostics code doesn’t break.
+        """
+        return self._next_token_batch()
 
     # tokenisation ---------------------------------------------------
     def _next_token_batch(self):
