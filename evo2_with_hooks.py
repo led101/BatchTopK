@@ -5,6 +5,13 @@ class Evo2WithHooks(torch.nn.Module):
         super().__init__()
         self.base = striped_hyena
         self.module_map = dict(self.base.named_modules())
+    
+    # forward every *other* attribute request to self.base
+    def __getattr__(self, name):
+        try:                       # avoid infinite recursion
+            return super().__getattr__(name)
+        except AttributeError:
+            return getattr(self.base, name)
 
     # forward that mimics TL's return_type convention
     def forward(self, input_ids, *, return_type=None):
