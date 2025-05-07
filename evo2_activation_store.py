@@ -27,8 +27,11 @@ class Evo2ActivationsStore:
 
         self._latest_act = None
         def hook(_, __, out):
-            self._latest_act = out.detach()
-        target.register_forward_hook(hook)
+            # StripedHyena blocks return  (tensor, aux_dict)
+            if isinstance(out, tuple):
+                out = out[0]
+            self._latest_act = out.detach() # (B, L, 4096)
+        target.register_forward_hook(hook) 
 
         ds = load_dataset(cfg["dataset_path"], split="train", streaming=True)
         self.dataset_iter = iter(ds)
