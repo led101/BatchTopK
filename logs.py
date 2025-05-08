@@ -42,9 +42,9 @@ def log_model_performance(wandb_run, step, model, activations_store, sae, index=
     sae_output = sae(batch)["sae_out"].reshape(batch_tokens.shape[0], batch_tokens.shape[1], -1)
 
     # fire a single mini-batch
-    _ = evo2_model.run_with_hooks(
-            some_tokens,
-            fwd_hooks=[("blocks.25.mlp.l3", spy_hook)]
+    _ = model.run_with_hooks(
+            batch_tokens,
+            fwd_hooks=[("blocks.26.mlp.l3", spy_hook)]
     )
 
     original_loss = model(batch_tokens, return_type="loss").item()
