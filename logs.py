@@ -22,6 +22,7 @@ def reconstr_hook(activation, hook, sae_out):
     return sae_out
 
 def zero_abl_hook(activation, hook):
+    print("-- zero hook fired --")          # 1-liner trace
     return torch.zeros_like(activation)
 
 def mean_abl_hook(activation, hook):
@@ -58,8 +59,13 @@ def log_model_performance(wandb_run, step, model, activations_store, sae, index=
 
     log_dict = {
         "performance/ce_degradation": ce_degradation,
-        "performance/recovery_from_zero": (reconstr_loss - zero_loss) / zero_degradation,
-        "performance/recovery_from_mean": (reconstr_loss - mean_loss) / mean_degradation,
+        "performance/recovery_from_zero": (
+            0.0 if abs(zero_degradation) == 0
+            else (reconstr_loss - zero_loss) / zero_degradation
+        ),
+        "performance/recovery_from_mean": 
+            0.0 if abs(mean_degradation) == 0 
+            else (reconstr_loss - mean_loss) / mean_degradation,
     }
 
     if index is not None:
