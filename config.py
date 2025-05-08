@@ -27,7 +27,7 @@ def get_default_cfg():
         "input_unit_norm": True,
         "perf_log_freq": 1000,
         "sae_type": "topk",
-        "checkpoint_freq": 10000,
+        "checkpoint_freq": 1000,
         "n_batches_to_dead": 5,
 
         # (Batch)TopKSAE specific
