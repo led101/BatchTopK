@@ -21,6 +21,10 @@ def log_wandb(output, step, wandb_run, index=None):
 def reconstr_hook(activation, hook, sae_out):
     return sae_out
 
+def spy_hook(t, m):
+    print(">>> spy", m.__class__.__name__, t.shape, t.mean().item(), flush=True)
+    return t             
+
 def zero_abl_hook(activation, hook):
     print("-- zero hook fired --")          # 1-liner trace
     print()
@@ -36,6 +40,12 @@ def log_model_performance(wandb_run, step, model, activations_store, sae, index=
     batch = activations_store.get_activations(batch_tokens).reshape(-1, sae.cfg["act_size"])
 
     sae_output = sae(batch)["sae_out"].reshape(batch_tokens.shape[0], batch_tokens.shape[1], -1)
+
+    # fire a single mini-batch
+    _ = evo2_model.run_with_hooks(
+            some_tokens,
+            fwd_hooks=[("blocks.25.mlp.l3", spy_hook)]
+    )
 
     original_loss = model(batch_tokens, return_type="loss").item()
     reconstr_loss = model.run_with_hooks(
