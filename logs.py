@@ -49,11 +49,11 @@ def log_model_performance(wandb_run, step, model, activations_store, sae, index=
         return_type="loss",
     ).item()
     mean_loss = model.run_with_hooks(
-        batch_tokens,
+        batch_tokens, 
         fwd_hooks=[(sae.cfg["hook_point"], mean_abl_hook)],
         return_type="loss",
     ).item()
-    print(f"zero_loss: {zero_loss:.4f}, mean_loss: {mean_loss:.4f}")
+    print(f"zero_loss: {zero_loss:.4f}, original_loss: {original_loss:.4f}, mean_loss: {mean_loss:.4f}")
     print()
 
     ce_degradation = original_loss - reconstr_loss

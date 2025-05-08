@@ -8,7 +8,7 @@ import torch
 from evo2_with_hooks import Evo2WithHooks 
 
 
-for l1_coeff in [0.004, 0.0018, 0.0008]:
+for l1_coeff in [0.0018]:
     cfg = get_default_cfg()
     cfg["model_name"] = "evo2_7b"
     cfg["layer"] = 26
