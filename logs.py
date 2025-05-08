@@ -42,7 +42,7 @@ def log_model_performance(wandb_run, step, model, activations_store, sae, index=
     sae_output = sae(batch)["sae_out"].reshape(batch_tokens.shape[0], batch_tokens.shape[1], -1)
 
     def delta_ce(name):
-        plain = model(tokens, return_type="loss").item()
+        plain = model(batch_tokens, return_type="loss").item()
         abl   = model.run_with_hooks(
                     batch_tokens,
                     fwd_hooks=[(name, lambda t,m: t*0)]
