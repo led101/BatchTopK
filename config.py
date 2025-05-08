@@ -25,7 +25,7 @@ def get_default_cfg():
         "dataset_path": "Skylion007/openwebtext",
         "wandb_project": "sparse_autoencoders",
         "input_unit_norm": True,
-        "perf_log_freq": 1000,
+        "perf_log_freq": 100,
         "sae_type": "topk",
         "checkpoint_freq": 1000,
         "n_batches_to_dead": 5,
