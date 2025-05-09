@@ -45,7 +45,7 @@ def post_init_cfg(cfg):
         cfg["hook_point"] = cfg["evo2_hook_module_path"]
     else:
         cfg["hook_point"] = get_act_name(cfg["site"], cfg["layer"])
-    cfg["name"] = f"{cfg['model_name']}_{cfg['hook_point']}_{cfg['dict_size']}_{cfg['sae_type']}_{cfg['top_k']}_lr_{cfg['lr']}_l1_coeff_{cfg['l1_coeff']}"
+    cfg["name"] = f"{cfg['model_name']}_{cfg['hook_point']}_{cfg['dict_size']}_{cfg['sae_type']}_{cfg['top_k']}_lr_{cfg['lr']}_l1_coeff_{cfg['l1_coeff']}_seq_len_{cfg['seq_len']}"
     return cfg
 
 # copied from https://github.com/TransformerLensOrg/TransformerLens/blob/main/transformer_lens/utils.py

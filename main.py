@@ -13,13 +13,13 @@ for l1_coeff in [0.0018]:
     cfg["model_name"] = "evo2_7b"
     cfg["layer"] = 26
     cfg["site"] = "resid_pre"
-    cfg["evo2_hook_module_path"] = "blocks.26.mlp"
+    cfg["evo2_hook_module_path"] = "blocks.26.pre_norm"
     cfg["dataset_path"] = "arcinstitute/opengenome2"
     cfg["act_size"] = 4096  # hidden size of 7b model
     cfg["dict_size"] = 4096 * 8
     cfg["top_k"] = 32
     cfg['l1_coeff'] = l1_coeff
-    cfg['seq_len'] = 256
+    cfg['seq_len'] = 512
     cfg['model_batch_size'] = 128
     cfg['dtype'] = torch.bfloat16
     cfg['device'] = 'cuda'
