@@ -19,8 +19,8 @@ for l1_coeff in [0.0018]:
     cfg["dict_size"] = 4096 * 16
     cfg["top_k"] = 32
     cfg['l1_coeff'] = l1_coeff
-    cfg['seq_len'] = 512
-    cfg['model_batch_size'] = 128
+    cfg['seq_len'] = 256
+    cfg['model_batch_size'] = 256
     cfg['dtype'] = torch.bfloat16
     cfg['device'] = 'cuda'
     cfg["num_tokens"]= int(1e8) # 100 million tokens
