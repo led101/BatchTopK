@@ -98,7 +98,7 @@ def main():
         toks = encode_batch(seq_batch)
 
         acts = {}
-        for name, _ in m.named_modules():
+        for name, _ in model.named_modules():
             print(name)
         h = dict(model.named_modules())[hook_name].register_forward_hook(
             lambda m, _in, out: acts.setdefault("x", out[0] if isinstance(out, tuple) else out))
