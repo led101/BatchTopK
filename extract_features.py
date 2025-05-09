@@ -79,10 +79,24 @@ def main():
         labels.append(is_cds(s, e))
     labels = np.asarray(labels)
 
+    SEQ_LEN   = cfg["seq_len"]
+    PAD_ID    = 0                      # Evo 2’s PAD is zero for CharLevelTokenizer
+
+    def encode_batch(seq_batch):
+        """
+        → 2-D LongTensor of shape (B, SEQ_LEN) on the current device.
+        """
+        out = torch.full((len(seq_batch), SEQ_LEN), PAD_ID,
+                        dtype=torch.long, device=device)
+        for i, s in enumerate(seq_batch):
+            ids = tok.tokenize(s)[:SEQ_LEN]   # truncate if longer
+            out[i, :len(ids)] = torch.tensor(ids, device=device)
+        return out
+
     # 4 ── helper: SAE activations for a batch of windows
     def sae_batch(seq_batch):
-        toks = tok.batch_encode_plus(seq_batch, return_tensors="pt",
-                                     padding="longest", truncation=True)["input_ids"].to(device)
+        toks = encode_batch(seq_batch)
+
         acts = {}
         h = dict(model.named_modules())[hook_name].register_forward_hook(
             lambda m, _in, out: acts.setdefault("x", out[0] if isinstance(out, tuple) else out))
