@@ -16,7 +16,7 @@ for l1_coeff in [0.0018]:
     cfg["evo2_hook_module_path"] = "blocks.26.mlp"
     cfg["dataset_path"] = "arcinstitute/opengenome2"
     cfg["act_size"] = 4096  # hidden size of 7b model
-    cfg["dict_size"] = 4096 * 16
+    cfg["dict_size"] = 4096 * 8
     cfg["top_k"] = 32
     cfg['l1_coeff'] = l1_coeff
     cfg['seq_len'] = 256
@@ -24,6 +24,7 @@ for l1_coeff in [0.0018]:
     cfg['dtype'] = torch.bfloat16
     cfg['device'] = 'cuda'
     cfg["num_tokens"]= int(1e8) # 100 million tokens
+    cfg["sae_type"] = "batchtopk"
 
     cfg["aux_penalty"] = (1/32)
     cfg["lr"] = 3e-4
