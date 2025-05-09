@@ -52,6 +52,7 @@ def main():
     work = tempfile.mkdtemp()
     art_dir = art.download(root=work)
     cfg      = json.load(open(os.path.join(art_dir, "config.json")))
+    cfg["dtype"] = torch.bfloat16  # overwrite the string in the json
     sae_path = os.path.join(art_dir, "sae.pt")
 
     # 2 ── load Evo 2 + SAE
