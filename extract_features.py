@@ -61,7 +61,7 @@ def main():
     sae      = BatchTopKSAE(cfg).to(device)
     sae.load_state_dict(torch.load(sae_path, map_location=device))
     sae.eval()
-    hook_name = cfg["hook_point"]
+    hook_name = "base." + cfg["hook_point"]
     d_model   = cfg["act_size"]
 
     # 3 ── genome + labels
