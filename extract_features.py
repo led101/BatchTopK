@@ -1,109 +1,121 @@
-import argparse
-import wandb, torch, json, re, numpy as np, pandas as pd
+import argparse, os, tempfile, gzip, json, requests
+import wandb, torch, numpy as np, pandas as pd
+from io import StringIO, BytesIO
+from Bio import SeqIO
+
 from evo2_loader import load_evo2
 from evo2_with_hooks import Evo2WithHooks
 from sae import BatchTopKSAE
-from Bio import SeqIO
-import os
-import tempfile
 
-"""
-Downloads a WANDB artifact (sae.pt + config.json), loads Evo 2 + SAE,
-and prints the 5 most CDS-enriched features on the supplied genome.
-"""
-parser = argparse.ArgumentParser()
-parser.add_argument("wandb_artifact", help="W&B artifact path (e.g. 'user/project/artifact:version')")
-parser.add_argument("gff_path", help="Path to GFF annotation file")
-parser.add_argument("fasta_path", help="Path to FASTA genome file")
-args = parser.parse_args()
 
-wandb_artifact = args.wandb_artifact
-gff_path = args.gff_path 
-fasta_path = args.fasta_path
+def read_fasta(path: str) -> str:
+    "Return upper-case genome string from local or http(s) FASTA (optionally .gz)."
+    if path.startswith(("http://", "https://")):
+        r = requests.get(path, timeout=30)
+        r.raise_for_status()
+        handle = BytesIO(gzip.decompress(r.content)) if path.endswith(".gz") \
+                 else StringIO(r.text)
+    else:
+        handle = gzip.open(path, "rt") if path.endswith(".gz") else open(path)
+    return str(SeqIO.read(handle, "fasta").seq).upper()
 
-device = "cuda"
 
-# 1. ── pull checkpoint from W-&-B ─────────────────────────────────────────
-api = wandb.Api()
-art = api.artifact(wandb_artifact)
-workdir = tempfile.mkdtemp()
-art_dir = art.download(root=workdir)
-cfg = json.load(open(os.path.join(art_dir, "config.json")))
-sae_path = os.path.join(art_dir, "sae.pt")
+def load_gff(path: str) -> pd.DataFrame:
+    cols = ["seqid","source","type","start","end","score","strand","phase","attr"]
+    if path.startswith(("http://", "https://")):
+        r = requests.get(path, timeout=30)
+        r.raise_for_status()
+        txt = gzip.decompress(r.content).decode() if path.endswith(".gz") else r.text
+        return pd.read_csv(StringIO(txt), sep="\t", comment="#", names=cols)
+    return pd.read_csv(path, sep="\t", comment="#", names=cols,
+                       compression="gzip" if path.endswith(".gz") else None)
 
-raw, tok = load_evo2(cfg["model_name"], torch.bfloat16)
-model = Evo2WithHooks(raw).eval().to(device)
-hook_name = cfg["hook_point"]
 
-# 3. ── build SAE module & load weights ───────────────────────────────────
-sae = BatchTopKSAE(cfg).to(device)
-sae.load_state_dict(torch.load(sae_path, map_location=device))
-sae.eval()
+def parse_args():
+    p = argparse.ArgumentParser(description="Contrastive feature search (CDS vs background)")
+    p.add_argument("--wandb_artifact", required=True,
+                   help="user/project/artifact:version")
+    p.add_argument("--gff_path", required=True)
+    p.add_argument("--fasta_path", required=True)
+    p.add_argument("--batch", type=int, default=16,
+                   help="windows per GPU batch (reduce if OOM)")
+    return p.parse_args()
 
-# 4. ── read genome & annotations ─────────────────────────────────────────
-def read_fasta(path):
-    rec = SeqIO.read(path, "fasta")
-    return str(rec.seq).upper()
 
-genome = read_fasta(fasta_path)
+def main():
+    args = parse_args()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
-gff_cols = ["seqid","source","type","start","end","score","strand","phase","attr"]
-gff = pd.read_csv(gff_path, sep="\t", comment="#", names=gff_cols)
-cds_ranges = gff[gff.type=="CDS"][["start","end"]].astype(int).values
+    # 1 ── pull SAE checkpoint from W&B
+    api = wandb.Api()
+    art = api.artifact(args.wandb_artifact)
+    work = tempfile.mkdtemp()
+    art_dir = art.download(root=work)
+    cfg      = json.load(open(os.path.join(art_dir, "config.json")))
+    sae_path = os.path.join(art_dir, "sae.pt")
 
-WINDOW = 1024
-STEP   = 1024
+    # 2 ── load Evo 2 + SAE
+    raw, tok = load_evo2(cfg["model_name"], torch.bfloat16)
+    model    = Evo2WithHooks(raw).eval().to(device)
+    sae      = BatchTopKSAE(cfg).to(device)
+    sae.load_state_dict(torch.load(sae_path, map_location=device))
+    sae.eval()
+    hook_name = cfg["hook_point"]
+    d_model   = cfg["act_size"]
 
-def is_cds(start,end):
-    s,e = start,end
-    return np.any((cds_ranges[:,0]<=e) & (cds_ranges[:,1]>=s))
+    # 3 ── genome + labels
+    genome = read_fasta(args.fasta_path)
+    gff    = load_gff(args.gff_path)
+    cds    = gff[gff.type == "CDS"][["start","end"]].astype(int).values
 
-windows, labels = [], []
-for i in range(0, len(genome)-WINDOW, STEP):
-    s, e = i, i+WINDOW
-    windows.append(genome[s:e])
-    labels.append(is_cds(s,e))
-labels = np.array(labels)
+    W, STEP = 1024, 1024
+    def is_cds(s,e): return np.any((cds[:,0] <= e) & (cds[:,1] >= s))
 
-# 5. ── helper to get SAE feature activations for a batch ─────────────────
-dmodel = cfg["act_size"]
-def sae_batch(seq_batch):
-    # encode → token ids
-    toks = tok.batch_encode_plus(seq_batch, return_tensors="pt",
-                                    padding="longest", truncation=True)["input_ids"].to(device)
-    # capture activations
-    acts = {}
-    def save(_,__,out): acts["x"]=out[0] if isinstance(out,tuple) else out
-    handle = dict(model.named_modules())[hook_name].register_forward_hook(save)
-    with torch.no_grad():
-        model(toks)
-    handle.remove()
-    x = acts["x"].reshape(-1, dmodel)                     # (B·L, 4096)
-    sae_out = sae(x)
-    feats = sae_out["feature_acts"].view(toks.size(0), toks.size(1), -1).amax(1)  # max-pool
-    return feats.cpu()
+    windows, labels = [], []
+    for i in range(0, len(genome) - W, STEP):
+        s, e = i, i + W
+        windows.append(genome[s:e])
+        labels.append(is_cds(s, e))
+    labels = np.asarray(labels)
 
-# build full feature matrix in manageable chunks
-X = torch.cat([sae_batch(windows[i:i+64])
-                for i in range(0, len(windows), 64)], 0)   # (N, dict_size)
+    # 4 ── helper: SAE activations for a batch of windows
+    def sae_batch(seq_batch):
+        toks = tok.batch_encode_plus(seq_batch, return_tensors="pt",
+                                     padding="longest", truncation=True)["input_ids"].to(device)
+        acts = {}
+        h = dict(model.named_modules())[hook_name].register_forward_hook(
+            lambda m, _in, out: acts.setdefault("x", out[0] if isinstance(out, tuple) else out))
+        with torch.no_grad(): model(toks)
+        h.remove()
 
-# 6. ── compute enrichment score  P(fires|CDS) − P(fires|nonCDS) ──────────
-fires = (X > 0).float()
-pos_rate = fires[labels==1].mean(0)
-neg_rate = fires[labels==0].mean(0)
-enrich   = (pos_rate - neg_rate).numpy()
+        x = acts["x"].reshape(-1, d_model)            # (B·L, d_model)
+        feats = sae(x)["feature_acts"]
+        return feats.view(toks.size(0), toks.size(1), -1).amax(1).cpu()  # (B, dict)
 
-topk = np.argsort(enrich)[-5:][::-1]
-print("\nTop-5 CDS-enriched SAE features")
-print("--------------------------------")
-for rank, f in enumerate(topk, 1):
-    print(f"{rank:2d}. feature {f:>6d}   enrichment = {enrich[f]:.3f}   "
-            f"fires in CDS: {pos_rate[f]:.3f}  fires elsewhere: {neg_rate[f]:.3f}")
+    # 5 ── build full feature matrix
+    XS = []
+    for i in range(0, len(windows), args.batch):
+        XS.append(sae_batch(windows[i:i+args.batch]))
+    X = torch.cat(XS)                                 # (N, dict_size)
 
-# (Optional) write a BED file under /data for IGV viewing later
-bed_path = f"/data/feature_{topk[0]}_cds.bed"
-with open(bed_path, "w") as bed:
-    for i, on in enumerate(fires[:, topk[0]]):
-        if on:
-            bed.write(f"{os.path.basename(fasta_path)}\t{i*STEP}\t{i*STEP+WINDOW}\n")
-print(f"\nBED track for feature {topk[0]} written to {bed_path}")
+    # 6 ── enrichment score
+    fires = (X > 0).float()
+    pos, neg = fires[labels==1].mean(0), fires[labels==0].mean(0)
+    enrich   = (pos - neg).numpy()
+    topk = np.argsort(enrich)[-5:][::-1]
+
+    print("\nTop-5 CDS-enriched SAE features")
+    for r,f in enumerate(topk,1):
+        print(f"{r:2d}. f/{f:<6d}  Δ = {enrich[f]:.3f}  P(CDS)={pos[f]:.3f}  P(bg)={neg[f]:.3f}")
+
+    # 7 ── optional BED
+    os.makedirs("/data", exist_ok=True)
+    bed = f"/data/feature_{topk[0]}_cds.bed"
+    with open(bed, "w") as out:
+        for i,on in enumerate(fires[:, topk[0]]):
+            if on: out.write(f"{os.path.basename(args.fasta_path)}\t{i*STEP}\t{i*STEP+W}\n")
+    print("BED track written ➜", bed)
+
+
+if __name__ == "__main__":
+    main()
