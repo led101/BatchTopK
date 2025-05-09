@@ -13,8 +13,8 @@ def read_fasta(path: str) -> str:
     if path.startswith(("http://", "https://")):
         r = requests.get(path, timeout=30)
         r.raise_for_status()
-        handle = BytesIO(gzip.decompress(r.content)) if path.endswith(".gz") \
-                 else StringIO(r.text)
+        handle = StringIO(gzip.decompress(r.content).decode()) if path.endswith(".gz") \
+             else StringIO(r.text)
     else:
         handle = gzip.open(path, "rt") if path.endswith(".gz") else open(path)
     return str(SeqIO.read(handle, "fasta").seq).upper()
