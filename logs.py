@@ -19,11 +19,7 @@ def log_wandb(output, step, wandb_run, index=None):
 
 # Hooks for model performance evaluation
 def reconstr_hook(activation, hook, sae_out):
-    return sae_out
-
-def spy_hook(t, m):
-    print(">>> spy", m.__class__.__name__, t.shape, t.mean().item(), flush=True)
-    return t             
+    return sae_out         
 
 def zero_abl_hook(activation, hook):
     print("-- zero hook fired --")          # 1-liner trace
@@ -40,20 +36,6 @@ def log_model_performance(wandb_run, step, model, activations_store, sae, index=
     batch = activations_store.get_activations(batch_tokens).reshape(-1, sae.cfg["act_size"])
 
     sae_output = sae(batch)["sae_out"].reshape(batch_tokens.shape[0], batch_tokens.shape[1], -1)
-
-    def delta_ce(name):
-        plain = model(batch_tokens, return_type="loss").item()
-        abl   = model.run_with_hooks(
-                    batch_tokens,
-                    fwd_hooks=[(name, lambda t,m: t*0)]
-                ).item()
-        return abl - plain
-
-    for p in ["blocks.26.post_norm",
-            "blocks.26.out_filter_dense",
-            "blocks.26.mlp.l3",
-            "blocks.26.pre_norm"]:
-        print(p, delta_ce(p))
 
     original_loss = model(batch_tokens, return_type="loss").item()
     reconstr_loss = model.run_with_hooks(
