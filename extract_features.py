@@ -95,17 +95,24 @@ def main():
 
     # 4 ── helper: SAE activations for a batch of windows
     def sae_batch(seq_batch):
-        toks = encode_batch(seq_batch)
+        toks = encode_batch(seq_batch)           # your helper from earlier
 
         acts = {}
-        h = dict(model.named_modules())[hook_name].register_forward_hook(
-            lambda m, _in, out: acts.setdefault("x", out[0] if isinstance(out, tuple) else out))
-        with torch.no_grad(): model(toks)
-        h.remove()
+        hook = dict(model.named_modules())[hook_name].register_forward_hook(
+            lambda m, _in, out: acts.setdefault(
+                "x", out[0] if isinstance(out, tuple) else out)
+        )
 
-        x = acts["x"].reshape(-1, d_model)            # (B·L, d_model)
-        feats = sae(x)["feature_acts"]
-        return feats.view(toks.size(0), toks.size(1), -1).amax(1).cpu()  # (B, dict)
+        with torch.no_grad():                    # TURN OFF GRADIENT TRACKING
+            model(toks)                          # Evo 2 forward
+        hook.remove()
+
+        x = acts["x"].reshape(-1, d_model)       # (B·L, 4096)
+
+        with torch.no_grad():                    # SAME FOR THE SAE CALL
+            feats = sae(x)["feature_acts"]       # no graph kept
+
+        return feats.view(toks.size(0), toks.size(1), -1).amax(1).cpu()
 
     # 5 ── build full feature matrix
     XS = []
